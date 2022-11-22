@@ -1,3 +1,3 @@
-module e.coding.net/lishuangquan-01/langtian.NewProjectResearch/concurrentlist
+module github.com/utils-go/concurrentlist
 
 go 1.19
