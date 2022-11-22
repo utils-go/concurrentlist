@@ -12,7 +12,7 @@ type ConcurrentListT[T any] struct {
 	mux  sync.Mutex
 }
 
-func NewList[T any]() *ConcurrentListT[T] {
+func NewListT[T any]() *ConcurrentListT[T] {
 	return &ConcurrentListT[T]{
 		data: make([]T, 0),
 	}
@@ -40,6 +40,9 @@ func (c *ConcurrentListT[T]) Remove(v T) bool {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	return c.removeWithoutLock(v)
+}
+func (c *ConcurrentListT[T]) removeWithoutLock(v T) bool {
 	newslice := make([]T, 0)
 	isexist := false
 
@@ -63,6 +66,9 @@ func (c *ConcurrentListT[T]) RemoveRange(index, count int) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
+	c.removeRangeWithoutLock(index, count)
+}
+func (c *ConcurrentListT[T]) removeRangeWithoutLock(index, count int) {
 	newslice := make([]T, 0)
 	newslice = append(newslice, c.data[0:index]...)
 	newslice = append(newslice, c.data[index+count:len(c.data)]...)
@@ -74,6 +80,10 @@ func (c *ConcurrentListT[T]) RemoveRange(index, count int) {
 func (c *ConcurrentListT[T]) Get(index int) (T, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
+	return c.getWithoutLock(index)
+}
+
+func (c *ConcurrentListT[T]) getWithoutLock(index int) (T, error) {
 	var defaultT T
 	if len(c.data) <= index {
 		return defaultT, errors.New(fmt.Sprintf("index: %d out of bound,max len: %d", index, len(c.data)))
@@ -92,21 +102,21 @@ func (c *ConcurrentListT[T]) GetAll() []T {
 func (c *ConcurrentListT[T]) Take(index int) (T, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	if d, err := c.Get(index); err != nil {
+
+	d, err := c.getWithoutLock(index)
+	if err != nil {
 		return d, err
-	} else {
-		if c.Remove(d) {
-			return d, nil
-		} else {
-			return d, errors.New("remove fail")
-		}
 	}
+	if !c.removeWithoutLock(d) {
+		return d, errors.New("remove fail")
+	}
+	return d, nil
 }
 func (c *ConcurrentListT[T]) TakeAll() []T {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	r := c.GetAll()
-	c.Clear()
+	r := c.data
+	c.data = make([]T, 0)
 	return r
 }
